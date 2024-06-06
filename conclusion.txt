@@ -1,0 +1,5 @@
+# 1The system designed to test trading strategies focuses on generating alpha in the stock market using a moving average crossover strategy. The system's effectiveness is
+evaluated through backtesting, which helps in understanding its performance and identifying areas for improvement.
+
+#2 The system designed to test trading strategies focuses on generating alpha in the stock market using a moving average crossover strategy. 
+The system's effectiveness is evaluated through backtesting, which helps in understanding its performance and identifying areas for improvement.

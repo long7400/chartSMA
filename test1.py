@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QMessageBox, QRadioButton, QLabel, QLineEdit, QFileDialog
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton
 import sys
 
+# RUN SCRIPT : pip install -r requirements.txt
 
 def download_stock_data(stock_symbol, start_date, end_date):
     """Tải dữ liệu từ Yahoo Finance cho một cổ phiếu từ ngày start_date đến end_date."""
@@ -216,66 +217,37 @@ def load_and_process_data(df, best_short_window, best_long_window, best_stop_los
     df_processed = set_stop_loss(df_processed, best_stop_loss_pct)
     return df_processed
 
-class InputWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.initUI()
-
-    def initUI(self):
-        self.setWindowTitle('Nhập dữ liệu')
-        self.setGeometry(200, 200, 400, 200)
-
-        layout = QVBoxLayout()
-
-        self.local_file_radio = QRadioButton('Sử dụng dữ liệu từ file local')
-        self.yfinance_radio = QRadioButton('Sử dụng dữ liệu từ yfinance')
-
-        self.file_path_label = QLabel('Đường dẫn đến file:')
-        self.file_path_edit = QLineEdit()
-        self.file_path_edit.setEnabled(False)
-
-        self.file_browse_button = QPushButton('Chọn file')
-        self.file_browse_button.clicked.connect(self.openFile)
-
-        self.confirm_button = QPushButton('Xác nhận')
-        self.confirm_button.clicked.connect(self.handle_confirm)
-
-        layout.addWidget(self.local_file_radio)
-        layout.addWidget(self.yfinance_radio)
-        layout.addWidget(self.file_path_label)
-        layout.addWidget(self.file_path_edit)
-        layout.addWidget(self.file_browse_button)
-        layout.addWidget(self.confirm_button)
-
-        self.setLayout(layout)
-
-    def openFile(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Chọn file', '', 'CSV Files (*.csv)')
-        if file_path:
-            self.file_path_edit.setText(file_path)
-
-    def handle_confirm(self):
-        if self.local_file_radio.isChecked():
-            file_path = self.file_path_edit.text()
-            try:
-                df = pd.read_csv(file_path, index_col='Date', parse_dates=True)
-                print("Dữ liệu từ file local đã được tải thành công.")
-                # Gọi hàm xử lý dữ liệu ở đây
-            except FileNotFoundError:
-                QMessageBox.warning(self, "Lỗi", "Không tìm thấy file. Vui lòng kiểm tra lại đường dẫn.")
-        elif self.yfinance_radio.isChecked():
-            symbol = 'AAPL'
-            start_date = '2019-01-01'
-            end_date = '2024-01-01'
-            df = download_stock_data(symbol, start_date, end_date)
-            print("Dữ liệu từ yfinance đã được tải thành công.")
-            # Gọi hàm xử lý dữ liệu ở đây ĐOẠN NÀY ĐƯỢC XỬ LÝ Ở HÀM MAIN
 
 def main():
+    symbol = 'AAPL'
+    start_date = '2019-01-01'
+    end_date = '2024-01-01'
+
+    df = download_stock_data(symbol, start_date, end_date)
+    # Tối ưu hóa các tham số
+    short_windows = range(10, 20, 30)
+    long_windows = range(50, 100, 200)
+    stop_loss_pcts = [0.05, 0.07, 0.08]
+    best_performance, best_short_window, best_long_window, best_stop_loss_pct = optimize_parameters(df, short_windows, long_windows, stop_loss_pcts)
+
+    # Tải dữ liệu và xử lý chỉ một lần
+    df_processed = load_and_process_data(df, best_short_window, best_long_window, best_stop_loss_pct)
+
+    # Hiển thị các điểm mua và bán
+    buy_signals = df_processed[df_processed['Signal'] == 1]
+    sell_signals = df_processed[df_processed['Signal'] == -1]
+    trade_signals = pd.concat([
+        buy_signals[['Close', 'Stop_Loss']].rename(columns={'Close': 'Buy_Price', 'Stop_Loss': 'Stop_Loss'}),
+        sell_signals[['Close', 'Stop_Loss']].rename(columns={'Close': 'Sell_Price', 'Stop_Loss': 'Stop_Loss'})
+    ], axis=1).sort_index()\
+    
+    print(trade_signals)
+
+    # Khởi chạy ứng dụng GUI và hiển thị
     app = QApplication(sys.argv)
-    input_widget = InputWidget()
-    input_widget.show()
+    ex = MainApp(df_processed)
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()

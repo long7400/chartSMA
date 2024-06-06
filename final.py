@@ -11,13 +11,13 @@ def download_stock_data(stock_symbol, start_date, end_date):
     """Tải dữ liệu từ Yahoo Finance cho một cổ phiếu từ ngày start_date đến end_date."""
     df = yf.download(stock_symbol, start=start_date, end=end_date)
     # Lưu DataFrame thành tệp CSV
-    df.to_csv(f'{stock_symbol}.csv', index=True)  # index=False để không lưu cột chỉ mục
+    df.to_csv(f'data/{stock_symbol}.csv', index=True)  # index=False để không lưu cột chỉ mục
 
     # Lưu DataFrame thành tệp Excel (XLS)
-    df.to_excel(f'{stock_symbol}.xlsx', index=True)
+    df.to_excel(f'data/{stock_symbol}.xlsx', index=True)
 
     # Lưu DataFrame thành tệp văn bản thông thường
-    with open(f'{stock_symbol}.txt', 'w') as file:
+    with open(f'data/{stock_symbol}.txt', 'w') as file:
         file.write(df.to_string(index=True))  # index=False để không lưu cột chỉ mục
 
     df.index = pd.to_datetime(df.index)
@@ -233,21 +233,29 @@ def main():
     # Tải dữ liệu và xử lý chỉ một lần
     df_processed = load_and_process_data(df, best_short_window, best_long_window, best_stop_loss_pct)
 
+    # In ra thông tin về các thông số tốt nhất và hiệu suất tốt nhất
+    print("Optimized Parameters:")
+    print(f"Best Short Window: {best_short_window}")
+    print(f"Best Long Window: {best_long_window}")
+    print(f"Best Stop Loss Percentage: {best_stop_loss_pct}")
+    print(f"Best Performance (Portfolio Value): ${best_performance:.2f}")
+
     # Hiển thị các điểm mua và bán
     buy_signals = df_processed[df_processed['Signal'] == 1]
     sell_signals = df_processed[df_processed['Signal'] == -1]
     trade_signals = pd.concat([
         buy_signals[['Close', 'Stop_Loss']].rename(columns={'Close': 'Buy_Price', 'Stop_Loss': 'Stop_Loss'}),
         sell_signals[['Close', 'Stop_Loss']].rename(columns={'Close': 'Sell_Price', 'Stop_Loss': 'Stop_Loss'})
-    ], axis=1).sort_index()\
+    ], axis=1).sort_index()
     
+    # Hiển thị thông tin về các điểm mua và bán dưới dạng DataFrame
+    print("Trade Signals:")
     print(trade_signals)
 
     # Khởi chạy ứng dụng GUI và hiển thị
     app = QApplication(sys.argv)
     ex = MainApp(df_processed)
     sys.exit(app.exec_())
-
-
+    s
 if __name__ == "__main__":
     main()

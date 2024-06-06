@@ -1,0 +1,56 @@
+BEGIN PSEUDOCODE
+
+# Xác định Mô hình Giao Dịch
+- Mô hình giao dịch sẽ sử dụng Moving Averages để tạo ra các tín hiệu mua/bán.
+- Khi giá của cổ phiếu vượt qua đường MA ngắn từ dưới lên trên, đó là tín hiệu mua.
+- Khi giá của cổ phiếu vượt qua đường MA dài từ trên xuống dưới, đó là tín hiệu bán.
+- Chúng ta cũng sẽ áp dụng một mức độ stop-loss để giảm thiểu rủi ro.
+
+# Mô hình Giao Dịch
+FOR mỗi ngày trong dữ liệu:
+    IF (giá đóng cửa hôm nay > MA ngắn) AND (giá đóng cửa hôm qua < MA ngắn) THEN
+        Tạo tín hiệu mua
+    ELSE IF (giá đóng cửa hôm nay < MA dài) AND (giá đóng cửa hôm qua > MA dài) THEN
+        Tạo tín hiệu bán
+    END IF
+END FOR
+
+# Tính toán Stop Loss
+- Chúng ta sẽ thiết lập một mức stop-loss dựa trên mức giá hiện tại và một phần trăm của nó.
+
+# Backtesting và Đánh giá Chiến lược
+- Sử dụng dữ liệu lịch sử, chạy chiến lược giao dịch trên một khoản thời gian cụ thể.
+- Đánh giá hiệu suất của chiến lược dựa trên lợi nhuận thu được.
+
+# Hiển thị Kết Quả
+- Hiển thị biểu đồ với các tín hiệu mua/bán, giá đóng cửa, và các điểm stop-loss.
+
+END PSEUDOCODE
+
+===========================================================================================
+
+BEGIN PSEUDOCODE
+
+# Define Trading Model
+- The trading model will use Moving Averages to generate buy/sell signals.
+- When the stock price crosses above the short-term MA from below, it's a buy signal.
+- When the stock price crosses below the long-term MA from above, it's a sell signal.
+- We will also apply a stop-loss level to minimize risk.
+# Trading Model
+FOR each day in the data:
+    IF (today's closing price > short-term MA) AND (yesterday's closing price < short-term MA) THEN
+        Generate a buy signal
+    ELSE IF (today's closing price < long-term MA) AND (yesterday's closing price > long-term MA) THEN
+        Generate a sell signal
+    END IF
+END FOR
+
+# Calculate Stop Loss
+- We will set a stop-loss level based on the current price and a percentage of it.
+# Backtesting and Strategy Evaluation
+- Using historical data, run the trading strategy over a specific period.
+- Evaluate the performance of the strategy based on the profit obtained.
+# Display Results
+- Display a chart with buy/sell signals, closing prices, and stop-loss points.
+
+END PSEUDOCODE

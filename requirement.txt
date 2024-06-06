@@ -3,3 +3,4 @@ pandas
 yfinance
 PyQt5
 matplotlib
+openpyxl
