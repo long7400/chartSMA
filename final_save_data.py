@@ -43,30 +43,27 @@ def generate_signals(data):
     return data
 
 def backtest(data, initial_cash=10000):
-    cash = initial_cash
-    shares = 0
-    portfolio_value = []
+    portfolio = {'Cash': initial_cash, 'Shares': 0}
     transactions = []
 
     for index, row in data.iterrows():
-        if row['Signal'] == 1:  # Tín hiệu mua
-            if cash > 0:
-                shares = cash / row['Close']
-                cash = 0
-                transactions.append((index, 'BUY', row['Close'], shares))
-        elif row['Signal'] == -1:  # Tín hiệu bán
-            if shares > 0:
-                cash = shares * row['Close']
-                shares = 0
-                transactions.append((index, 'SELL', row['Close'], shares))
+        if row['Signal'] == 1 and portfolio['Cash'] > 0:  # Mua
+            shares_to_buy = portfolio['Cash'] // row['Close']
+            if shares_to_buy > 0:
+                cost = shares_to_buy * row['Close']
+                portfolio['Shares'] += shares_to_buy
+                portfolio['Cash'] -= cost
+                transactions.append((index, 'BUY', row['Close'], shares_to_buy))
+        elif row['Signal'] == -1 and portfolio['Shares'] > 0:  # Bán
+            cash_from_sale = portfolio['Shares'] * row['Close']
+            portfolio['Cash'] += cash_from_sale
+            portfolio['Shares'] = 0
+            transactions.append((index, 'SELL', row['Close'], portfolio['Shares']))
 
-        total_value = cash + shares * row['Close']
-        portfolio_value.append(total_value)
+    portfolio_value = portfolio['Cash'] + portfolio['Shares'] * data['Close'].iloc[-1]
+    data['Portfolio_Value'] = initial_cash + data['Close'] * portfolio['Shares']
 
-    data['Portfolio_Value'] = portfolio_value
-    transactions_df = pd.DataFrame(transactions, columns=['Date', 'Type', 'Price', 'Shares'])
-
-    return data, transactions_df
+    return data, pd.DataFrame(transactions, columns=['Date', 'Type', 'Price', 'Shares'])
 
 def plot_close_prices(data):
     """Vẽ biểu đồ giá đóng cửa."""
