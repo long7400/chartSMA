@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton
 import sys
 
-# RUN SCRIPT : pip install numpy pandas yfinance PyQt5 matplotlib openpyxl
+# RUN SCRIPT : pip install -r requirements.txt
 
 def download_stock_data(stock_symbol, start_date, end_date):
     """Tải dữ liệu từ Yahoo Finance cho một cổ phiếu từ ngày start_date đến end_date."""
@@ -59,6 +59,7 @@ def backtest(data, initial_cash=10000):
         total_value = cash + shares * row['Close']
         portfolio_value.append(total_value)
 
+    data['Portfolio_Value'] = portfolio_value
     return portfolio_value
 
 def plot_close_prices(data):
@@ -78,21 +79,11 @@ def plot_price_and_ma(data, best_short_window, best_long_window):
     data['MA_Long'].plot(label=f"{best_long_window} Moving Average", color='g')
     data['Stop_Loss'].plot(label="Stop Loss", color='r')
     plt.plot(data[data['Signal'] == 1].index, data['MA_Short'][data['Signal'] == 1], '^', markersize=15, color='g', label='Buy Signal')
-    plt.plot(data[data['Signal'] == -1].index, data['MA_Short'][data['Signal'] == -1], 'v', markersize=15, color='r', label='Sell Signal')
+    plt.plot(data[data['Signal'] == -1].index, data['MA_Long'][data['Signal'] == -1], 'v', markersize=15, color='r', label='Sell Signal')
     plt.legend()
     plt.xlabel('Date')
     plt.ylabel('Price')
     plt.title('Close Price, Moving Averages, and Signals')
-    plt.grid(True)
-    plt.show()
-
-def plot_portfolio_value(data, portfolio_value):
-    """Vẽ biểu đồ giá trị của tài khoản qua thời gian."""
-    plt.figure(figsize=(10, 6))
-    plt.plot(data.index, portfolio_value)
-    plt.xlabel('Date')
-    plt.ylabel('Portfolio Value ($)')
-    plt.title('Portfolio Value Over Time')
     plt.grid(True)
     plt.show()
 
@@ -110,9 +101,8 @@ def plot_trade_signals(data):
     plt.legend()
     plt.grid(True)
     plt.show()
-
+    
 def optimize_parameters(df, short_windows, long_windows, stop_loss_pcts):
-    """Tối ưu hóa các tham số của chiến lược giao dịch."""
     best_performance = -np.inf
     best_short_window = 0
     best_long_window = 0
@@ -144,9 +134,11 @@ def optimize_parameters(df, short_windows, long_windows, stop_loss_pcts):
     return best_performance, best_short_window, best_long_window, best_stop_loss_pct
 
 class MainApp(QWidget):
-    def __init__(self, df_processed):
+    def __init__(self, df_processed, best_short_window, best_long_window):
         super().__init__()
         self.df_processed = df_processed
+        self.best_short_window = best_short_window
+        self.best_long_window = best_long_window
         self.initUI()
 
     def initUI(self):
@@ -173,27 +165,10 @@ class MainApp(QWidget):
         self.show()
 
     def plot_close_prices(self):
-        plt.figure(figsize=(10, 6))
-        self.df_processed['Close'].plot(title='Close Prices')
-        plt.xlabel('Date')
-        plt.ylabel('Close Price')
-        plt.grid(True)
-        plt.show()
+        plot_close_prices(self.df_processed)
 
     def plot_price_and_ma(self):
-        plt.figure(figsize=(20, 10))
-        self.df_processed['Close'].plot(label="Price", color='k')
-        self.df_processed['MA_Short'].plot(label="Short Moving Average", color='b')
-        self.df_processed['MA_Long'].plot(label="Long Moving Average", color='g')
-        self.df_processed['Stop_Loss'].plot(label="Stop Loss", color='r')
-        plt.plot(self.df_processed[self.df_processed['Signal'] == 1].index, self.df_processed['MA_Short'][self.df_processed['Signal'] == 1], '^', markersize=15, color='g', label='Buy Signal')
-        plt.plot(self.df_processed[self.df_processed['Signal'] == -1].index, self.df_processed['MA_Short'][self.df_processed['Signal'] == -1], 'v', markersize=15, color='r', label='Sell Signal')
-        plt.legend()
-        plt.xlabel('Date')
-        plt.ylabel('Price')
-        plt.title('Close Price, Moving Averages, and Signals')
-        plt.grid(True)
-        plt.show()
+        plot_price_and_ma(self.df_processed, self.best_short_window, self.best_long_window)
 
     def plot_portfolio_value(self):
         portfolio_value = backtest(self.df_processed)
@@ -208,7 +183,6 @@ class MainApp(QWidget):
     def plot_trade_signals(self):
         plot_trade_signals(self.df_processed)
 
-
 # Tải dữ liệu và xử lý chỉ một lần
 def load_and_process_data(df, best_short_window, best_long_window, best_stop_loss_pct):
     df_processed = df.copy()
@@ -217,7 +191,6 @@ def load_and_process_data(df, best_short_window, best_long_window, best_stop_los
     df_processed = set_stop_loss(df_processed, best_stop_loss_pct)
     return df_processed
 
-
 def main():
     symbol = 'AAPL'
     start_date = '2019-01-01'
@@ -225,8 +198,8 @@ def main():
 
     df = download_stock_data(symbol, start_date, end_date)
     # Tối ưu hóa các tham số
-    short_windows = range(10, 20, 30)
-    long_windows = range(50, 100, 200)
+    short_windows = range(10, 100, 20)
+    long_windows = range(50, 500, 100)
     stop_loss_pcts = [0.05, 0.07, 0.08]
     best_performance, best_short_window, best_long_window, best_stop_loss_pct = optimize_parameters(df, short_windows, long_windows, stop_loss_pcts)
 
@@ -254,7 +227,8 @@ def main():
 
     # Khởi chạy ứng dụng GUI và hiển thị
     app = QApplication(sys.argv)
-    ex = MainApp(df_processed)
+    ex = MainApp(df_processed, best_short_window, best_long_window)
+    
     sys.exit(app.exec_())
     s
 if __name__ == "__main__":
