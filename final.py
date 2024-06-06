@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton
 import sys
 
-# RUN SCRIPT : pip install -r requirements.txt
+# RUN SCRIPT : pip install numpy pandas yfinance PyQt5 matplotlib openpyxl
 
 def download_stock_data(stock_symbol, start_date, end_date):
     """Tải dữ liệu từ Yahoo Finance cho một cổ phiếu từ ngày start_date đến end_date."""
