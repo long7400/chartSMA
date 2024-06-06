@@ -44,26 +44,30 @@ def generate_signals(data):
 
 def backtest(data, initial_cash=10000):
     portfolio = {'Cash': initial_cash, 'Shares': 0}
+    portfolio_value = []
     transactions = []
 
     for index, row in data.iterrows():
-        if row['Signal'] == 1 and portfolio['Cash'] > 0:  # Mua
-            shares_to_buy = portfolio['Cash'] // row['Close']
-            if shares_to_buy > 0:
-                cost = shares_to_buy * row['Close']
+        if row['Signal'] == 1:  # Tín hiệu mua
+            if portfolio['Cash'] > 0:
+                shares_to_buy = portfolio['Cash'] / row['Close']
                 portfolio['Shares'] += shares_to_buy
-                portfolio['Cash'] -= cost
+                portfolio['Cash'] = 0
                 transactions.append((index, 'BUY', row['Close'], shares_to_buy))
-        elif row['Signal'] == -1 and portfolio['Shares'] > 0:  # Bán
-            cash_from_sale = portfolio['Shares'] * row['Close']
-            portfolio['Cash'] += cash_from_sale
-            portfolio['Shares'] = 0
-            transactions.append((index, 'SELL', row['Close'], portfolio['Shares']))
+        elif row['Signal'] == -1:  # Tín hiệu bán
+            if portfolio['Shares'] > 0:
+                cash_from_sale = portfolio['Shares'] * row['Close']
+                portfolio['Cash'] += cash_from_sale
+                portfolio['Shares'] = 0
+                transactions.append((index, 'SELL', row['Close'], 0))
 
-    portfolio_value = portfolio['Cash'] + portfolio['Shares'] * data['Close'].iloc[-1]
-    data['Portfolio_Value'] = initial_cash + data['Close'] * portfolio['Shares']
+        total_value = portfolio['Cash'] + portfolio['Shares'] * row['Close']
+        portfolio_value.append(total_value)
 
-    return data, pd.DataFrame(transactions, columns=['Date', 'Type', 'Price', 'Shares'])
+    data['Portfolio_Value'] = portfolio_value
+    transactions_df = pd.DataFrame(transactions, columns=['Date', 'Type', 'Price', 'Shares'])
+
+    return data, transactions_df
 
 def plot_close_prices(data):
     """Vẽ biểu đồ giá đóng cửa."""
@@ -110,12 +114,39 @@ def calculate_performance_metrics(data):
     total_return = data['Portfolio_Value'].iloc[-1] / data['Portfolio_Value'].iloc[0] - 1
     annualized_return = (1 + total_return) ** (252 / len(data)) - 1
     daily_returns = data['Portfolio_Value'].pct_change().dropna()
-    annualized_volatility = np.std(daily_returns) * np.sqrt(252)
-    sharpe_ratio = annualized_return / annualized_volatility
-    max_drawdown = (data['Portfolio_Value'].cummax() - data['Portfolio_Value']).max()
-    sortino_ratio = annualized_return / np.std(daily_returns[daily_returns < 0]) * np.sqrt(252)
-    calmar_ratio = annualized_return / max_drawdown
-    win_ratio = (data['Signal'] == 1).sum() / (data['Signal'] != 0).sum()
+
+    # Khởi tạo các biến
+    annualized_volatility = np.nan
+    sharpe_ratio = np.nan
+    calmar_ratio = np.nan
+    sortino_ratio = np.nan
+    win_ratio = np.nan
+    max_drawdown = np.nan
+
+    # Tính độ biến động hàng năm nếu có lợi nhuận hàng ngày
+    if len(daily_returns) > 0:
+        annualized_volatility = np.std(daily_returns) * np.sqrt(252)
+
+        # Tính độ rơi tối đa nếu độ biến động hàng năm không bằng không
+        max_drawdown = (data['Portfolio_Value'].cummax() - data['Portfolio_Value']).max()
+        if max_drawdown != 0:
+            calmar_ratio = annualized_return / max_drawdown
+
+        # Tính tỉ số Sharpe nếu độ biến động hàng năm không bằng không
+        if annualized_volatility != 0:
+            sharpe_ratio = annualized_return / annualized_volatility
+
+        # Tính tỉ số Sortino
+        negative_daily_returns = daily_returns[daily_returns < 0]
+        if len(negative_daily_returns) > 0:
+            sortino_ratio = annualized_return / np.std(negative_daily_returns) * np.sqrt(252)
+
+    # Tính tỷ lệ thắng
+    if 'Signal' in data:
+        buy_signals_count = (data['Signal'] == 1).sum()
+        total_signals_count = (data['Signal'] != 0).sum()
+        if total_signals_count != 0:
+            win_ratio = buy_signals_count / total_signals_count
 
     return {
         'Annualized Return': annualized_return,
@@ -269,17 +300,11 @@ def main():
 
     best_performance, best_short_window, best_long_window, best_stop_loss_pct, best_data, best_transactions_df = optimize_parameters(df, short_windows, long_windows, stop_loss_pcts, log_filename)
 
-    print(f"Optimized Parameters:\nBest Short Window: {best_short_window}\nBest Long Window: {best_long_window}\nBest Stop Loss Percentage: {best_stop_loss_pct}")
-
     # Tải dữ liệu và xử lý chỉ một lần
     df_processed = load_and_process_data(df, best_short_window, best_long_window, best_stop_loss_pct)
 
     # In ra thông tin về các thông số tốt nhất và hiệu suất tốt nhất
-    print("Optimized Parameters:")
-    print(f"Best Short Window: {best_short_window}")
-    print(f"Best Long Window: {best_long_window}")
-    print(f"Best Stop Loss Percentage: {best_stop_loss_pct}")
-    print(f"Best Performance (Portfolio Value): ${best_performance:.2f}")
+    print(f"Optimized Parameters:\nBest Short Window: {best_short_window}\nBest Long Window: {best_long_window}\nBest Stop Loss Percentage: {best_stop_loss_pct}")
 
     # Hiển thị các điểm mua và bán
     buy_signals = df_processed[df_processed['Signal'] == 1]
