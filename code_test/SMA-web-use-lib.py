@@ -3,15 +3,16 @@ from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
 from backtesting.test import SMA
 
-# Đọc dữ liệu từ file CSV và chuyển cột 'Date' thành index
-df = pd.read_csv('VN-Index-Historical-Data.csv', parse_dates=['Date'])
+# Đọc dữ liệu từ file Excel và chuyển cột 'Date' thành index
+df = pd.read_excel('data/data.xlsx', parse_dates=['Date'])
+df.rename(columns={'Price': 'Close'}, inplace=True)
 df.set_index('Date', inplace=True)
 
 class MyStrategy(Strategy):
     def init(self):
         # Sử dụng đường trung bình động SMA với cửa sổ 50 và 200 ngày
         self.sma_short = self.I(SMA, self.data.Close, 50)
-        self.sma_long = self.I(SMA, self.data.Close, 200)
+        self.sma_long = self.I(SMA, self.data.Close, 150)
         self.stop_loss = 0.05
 
     def next(self):

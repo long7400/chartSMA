@@ -4,31 +4,46 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton
 import sys
-from datetime import datetime
-import os
 
 # RUN SCRIPT : pip install -r requirements.txt
 
+# def download_stock_data(stock_symbol, start_date, end_date):
+#     """Tải dữ liệu từ Yahoo Finance cho một cổ phiếu từ ngày start_date đến end_date."""
+#     df = yf.download(stock_symbol, start=start_date, end=end_date)
+#     # Lưu DataFrame thành tệp CSV
+#     df.to_csv(f'data/{stock_symbol}.csv', index=True)  # index=False để không lưu cột chỉ mục
+
+#     # Lưu DataFrame thành tệp Excel (XLS)
+#     df.to_excel(f'data/{stock_symbol}.xlsx', index=True)
+
+#     # Lưu DataFrame thành tệp văn bản thông thường
+#     with open(f'data/{stock_symbol}.txt', 'w') as file:
+#         file.write(df.to_string(index=True))  # index=False để không lưu cột chỉ mục
+
+#     df.index = pd.to_datetime(df.index)
+#     return df
+
 def download_stock_data(stock_symbol, start_date, end_date):
-    """Tải dữ liệu từ Yahoo Finance cho một cổ phiếu từ ngày start_date đến end_date."""
-    df = yf.download(stock_symbol, start=start_date, end=end_date)
-    # Lưu DataFrame thành tệp CSV
-    df.to_csv(f'data/{stock_symbol}.csv', index=True)  # index=False để không lưu cột chỉ mục
+    """Đọc dữ liệu từ một tệp tin Excel cho cổ phiếu."""
+    df = pd.read_excel('data/data.xlsx', parse_dates=['Date'], index_col='Date')
+    
+    # Thay đổi tên cột 'Price' thành 'Close'
+    if 'Price' in df.columns:
+        df.rename(columns={'Price': 'Close'}, inplace=True)
 
-    # Lưu DataFrame thành tệp Excel (XLS)
-    df.to_excel(f'data/{stock_symbol}.xlsx', index=True)
+    # Kiểm tra xem dữ liệu đã được sắp xếp theo thứ tự tăng dần hay giảm dần
+    is_descending = df.index.is_monotonic_decreasing
 
-    # Lưu DataFrame thành tệp văn bản thông thường
-    with open(f'data/{stock_symbol}.txt', 'w') as file:
-        file.write(df.to_string(index=True))  # index=False để không lưu cột chỉ mục
+    # Nếu dữ liệu đang theo thứ tự giảm dần, đảo ngược lại
+    if is_descending:
+        df = df[::-1]
 
-    df.index = pd.to_datetime(df.index)
     return df
 
 def calculate_moving_averages(data, short_window, long_window):
     """Tính toán và thêm cột MA_Short và MA_Long (Moving Averages) vào DataFrame."""
-    data['MA_Short'] = data['Close'].rolling(window=short_window).mean()
-    data['MA_Long'] = data['Close'].rolling(window=long_window).mean()
+    data.loc[:, 'MA_Short'] = data['Close'].rolling(window=short_window).mean()
+    data.loc[:, 'MA_Long'] = data['Close'].rolling(window=long_window).mean()
     return data
 
 def set_stop_loss(data, stop_loss_pct):
@@ -85,8 +100,8 @@ def plot_price_and_ma(data, best_short_window, best_long_window):
     data['MA_Short'].plot(label=f"{best_short_window} Moving Average", color='b')
     data['MA_Long'].plot(label=f"{best_long_window} Moving Average", color='g')
     data['Stop_Loss'].plot(label="Stop Loss", color='r')
-    plt.plot(data[data['Signal'] == 1].index, data['MA_Short'][data['Signal'] == 1], '^', markersize=15, color='g', label='Buy Signal')
-    plt.plot(data[data['Signal'] == -1].index, data['MA_Long'][data['Signal'] == -1], 'v', markersize=15, color='r', label='Sell Signal')
+    plt.plot(data[data['Signal'] == 1].index, data['MA_Short'][data['Signal'] == 1], '^', markersize=10, color='g', lw=0, label='Buy Signal')
+    plt.plot(data[data['Signal'] == -1].index, data['MA_Short'][data['Signal'] == -1], 'v', markersize=10, color='r', lw=0, label='Sell Signal')
     plt.legend()
     plt.xlabel('Date')
     plt.ylabel('Price')
@@ -118,28 +133,14 @@ def calculate_performance_metrics(data):
     # Khởi tạo các biến
     annualized_volatility = np.nan
     sharpe_ratio = np.nan
-    calmar_ratio = np.nan
-    sortino_ratio = np.nan
     win_ratio = np.nan
-    max_drawdown = np.nan
 
     # Tính độ biến động hàng năm nếu có lợi nhuận hàng ngày
     if len(daily_returns) > 0:
         annualized_volatility = np.std(daily_returns) * np.sqrt(252)
 
-        # Tính độ rơi tối đa nếu độ biến động hàng năm không bằng không
-        max_drawdown = (data['Portfolio_Value'].cummax() - data['Portfolio_Value']).max()
-        if max_drawdown != 0:
-            calmar_ratio = annualized_return / max_drawdown
-
-        # Tính tỉ số Sharpe nếu độ biến động hàng năm không bằng không
         if annualized_volatility != 0:
             sharpe_ratio = annualized_return / annualized_volatility
-
-        # Tính tỉ số Sortino
-        negative_daily_returns = daily_returns[daily_returns < 0]
-        if len(negative_daily_returns) > 0:
-            sortino_ratio = annualized_return / np.std(negative_daily_returns) * np.sqrt(252)
 
     # Tính tỷ lệ thắng
     if 'Signal' in data:
@@ -152,9 +153,6 @@ def calculate_performance_metrics(data):
         'Annualized Return': annualized_return,
         'Annualized Volatility': annualized_volatility,
         'Sharpe Ratio': sharpe_ratio,
-        'Max Drawdown': max_drawdown,
-        'Sortino Ratio': sortino_ratio,
-        'Calmar Ratio': calmar_ratio,
         'Win Ratio': win_ratio
     }
     
@@ -302,9 +300,13 @@ def main():
 
     # Tải dữ liệu và xử lý chỉ một lần
     df_processed = load_and_process_data(df, best_short_window, best_long_window, best_stop_loss_pct)
-
+    
     # In ra thông tin về các thông số tốt nhất và hiệu suất tốt nhất
-    print(f"Optimized Parameters:\nBest Short Window: {best_short_window}\nBest Long Window: {best_long_window}\nBest Stop Loss Percentage: {best_stop_loss_pct}")
+    print("Optimized Parameters:")
+    print(f"Best Short Window: {best_short_window}")
+    print(f"Best Long Window: {best_long_window}")
+    print(f"Best Stop Loss Percentage: {best_stop_loss_pct}")
+    print(f"Best Performance (Portfolio Value): ${best_performance:.2f}")
 
     # Hiển thị các điểm mua và bán
     buy_signals = df_processed[df_processed['Signal'] == 1]
@@ -315,6 +317,7 @@ def main():
     ], axis=1).sort_index()
     
     # Hiển thị thông tin về các điểm mua và bán dưới dạng DataFrame
+    print(df_processed.head(50))
     print("Trade Signals:")
     print(trade_signals)
 
